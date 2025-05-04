@@ -112,6 +112,7 @@ Procedure TCorP3DWorld.AddCollider(Const aCollider: TCorP3DCollider);
 Begin
   setlength(fColliders, high(fColliders) + 2);
   fColliders[high(fColliders)] := aCollider;
+  fColliders[high(fColliders)].Finish; // Finish collider if not yet done ..
 End;
 
 Procedure TCorP3DWorld.ClearWorldContent;
@@ -126,7 +127,7 @@ End;
 
 Procedure TCorP3DWorld.Step(aDelta: Single);
 Var
-  i: Integer;
+  i, j: Integer;
   Acceleration: TVector3;
 Begin
   If Not assigned(OnForceAndTorqueCallback) Then exit;
@@ -142,6 +143,14 @@ Begin
       fColliders[i].Velocity := fColliders[i].Velocity + Acceleration * aDelta;
 
       fColliders[i].Position := fColliders[i].Position + fColliders[i].Velocity * aDelta;
+    End;
+  End;
+  // Collide with others
+  For i := 0 To high(fColliders) Do Begin
+    For j := i + 1 To high(fColliders) Do Begin
+      If fColliders[i].Collide(fColliders[j]) Then Begin
+
+      End;
     End;
   End;
 End;

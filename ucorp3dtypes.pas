@@ -31,6 +31,8 @@ Function AABB(a, b: TVector3): TAABB;
 Operator = (a, b: TAABB): Boolean;
 Operator * (m: TMatrix4x4; v: TVector3): Tvector3;
 
+Procedure Nop();
+
 Implementation
 
 Uses math;
@@ -47,16 +49,20 @@ Begin
     (abs(min(a.A.x, a.b.x) - min(b.a.x, b.b.x)) < Epsilon)
     And (abs(min(a.A.y, a.b.y) - min(b.a.y, b.b.y)) < Epsilon)
     And (abs(min(a.A.z, a.b.z) - min(b.a.z, b.b.z)) < Epsilon);
-
 End;
 
 Operator * (m: TMatrix4x4; v: TVector3): Tvector3;
 Var
   tmp: TVector4;
 Begin
-  tmp := v4(v, 0); // W will show is the Vector is a direction (=1) or a absolute value (=0)
+  tmp := v4(v, 1);
   tmp := m * tmp;
   result := tmp;
+End;
+
+Procedure Nop();
+Begin
+  // Just for debugging
 End;
 
 End.

@@ -251,6 +251,7 @@ End;
 Procedure TForm1.CreateWorldContent;
 Var
   b: TCorP3DBox;
+  floor: TCorP3Plane;
 Begin
   world.ClearWorldContent; // Cleanup
   // Create new World
@@ -261,12 +262,12 @@ Begin
   world.AddCollider(box);
 
   // 2. Create something to collide with ;)
-//  b := TCorP3DBox.Create(v3(2, 1, 2));
-//  b.Position := v3(0, 0.5, 0);
-//  world.AddCollider(b);
+  b := TCorP3DBox.Create(v3(2, 1, 2));
+  b.Position := v3(0, 0.5, 0);
+  world.AddCollider(b);
 
-
-  //
+  floor := TCorP3Plane.Create(v3(0, 1, 0), v3(0, 0, 0));
+  world.AddCollider(floor);
   //  world.Dim := AABB(v3(-100, 0, -100), v3(100, 100, 100));
 End;
 

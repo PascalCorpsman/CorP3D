@@ -24,25 +24,30 @@ Uses
 Type
 
   (*
-   * Most basic Collider Class -> do not directly create, use some derivatives
+   * Most basic Collider Class
    *)
 
   { TCorP3DCollider }
 
   TCorP3DCollider = Class
   private
+    fFinished: Boolean; // True if all collision precalculations are made
     FForce: TVector3;
     fMaterial: integer;
     fCenterOfMass: TVector3;
     fMass: Single;
     fMatrix: TMatrix4x4;
-    fPoints: TVector3Array;
+    fvertices: TVector3Array;
     fVelocity: TVector3;
+    finside: TVector3;
+    Function getTransformedVertex(index: integer): TVector3;
   protected
+    Procedure setMass(AValue: Single); virtual;
     Function getPosition: TVector3; virtual;
     Procedure setPosition(AValue: TVector3); virtual;
     Function getVertex(index: integer): TVector3; virtual;
     Function getVertexCount: integer; virtual;
+    Procedure SetPoints(Const aPoints: TVector3Array);
   public
     UserData: PtrInt;
 
@@ -50,9 +55,10 @@ Type
     Property Force: TVector3 read FForce write FForce;
     Property Material: integer read fMaterial write fMaterial;
     Property Matrix: TMatrix4x4 read fMatrix write fMatrix;
-    Property Mass: Single read fMass write fMass; // 0 = solid / not moveable !
+    Property Mass: Single read fMass write setMass; // 0 = solid / not moveable !
     Property Position: TVector3 read getPosition write setPosition;
 
+    Property TransformedVertex[index: integer]: TVector3 read getTransformedVertex;
     Property Vertex[index: integer]: TVector3 read getVertex;
     Property VertexCount: integer read getVertexCount;
 
@@ -61,9 +67,25 @@ Type
     Constructor Create(); virtual;
     Destructor Destroy(); override;
 
-    Procedure SetPoints(Const aPoints: TVector3Array);
+    Function AABB: TAABB; virtual;
+    Function Collide(Const other: TCorP3DCollider): Boolean; virtual;
 
-    Function AABB: TAABB; virtual; // abstract;
+    Procedure Finish; virtual; // Needed to be called every time after the vertex data is changed
+  End;
+
+
+  { TCorP3Plane }
+
+  TCorP3Plane = Class(TCorP3DCollider)
+  private
+    fRestitution: Single;
+    fNormVector, fBasePoint: TVector3;
+  protected
+    Procedure setMass(AValue: Single); override;
+  public
+    Property Restitution: Single read fRestitution write fRestitution; // 0 = No bounce, 1 = perfect bounce
+    Constructor Create(NormVector, BasePoint: TVector3); reintroduce;
+    Procedure Finish; override;
   End;
 
   { TCorP3DBox }
@@ -90,6 +112,43 @@ Type
 
 Implementation
 
+Uses math;
+
+Function Collide2Objects(Const A, B: TCorP3DCollider): Boolean;
+Var
+  p: TCorP3Plane;
+  i: Integer;
+  d: Single;
+Begin
+  result := false;
+  If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
+  If (a Is TCorP3Plane) And (b Is TCorP3Plane) Then exit; // 2 planes do not collide, as they both has no mass
+  // Sort a to be a plane
+  If b Is TCorP3Plane Then Begin
+    result := Collide2Objects(b, a);
+    exit;
+  End;
+  If a Is TCorP3Plane Then Begin
+    p := TCorP3Plane(a);
+    d := 1;
+    For i := 0 To high(B.fvertices) Do Begin
+      d := min(d, (B.TransformedVertex[i] - p.fBasePoint) * p.fNormVector);
+    End;
+    If d < 0 Then Begin
+      // Move B object "above" the plane
+      B.Position := B.Position - p.fNormVector * d;
+      B.Velocity := B.Velocity - (1 + p.fRestitution) * (B.Velocity * p.fNormVector) * p.fNormVector;
+      result := true;
+    End;
+    exit;
+  End;
+  If (a Is TCorP3DBox) And (b Is TCorP3DBox) Then Begin
+    // TODO: implement collision detection between 2 convex colliders
+    exit;
+  End;
+  Raise exception.create('Error unhandled collision detection between ' + a.ClassName + ' and ' + b.ClassName);
+End;
+
 { TCorP3DCollider }
 
 Function TCorP3DCollider.AABB: TAABB;
@@ -97,14 +156,40 @@ Var
   i: Integer;
   tmp: TVector3;
 Begin
-  If Not assigned(fPoints) Then Raise exception.create('no points');
-  result.a := fMatrix * fPoints[0];
+  If Not assigned(fvertices) Then Raise exception.create('no points');
+  result.a := fMatrix * fvertices[0];
   result.B := result.a;
-  For i := 1 To high(fPoints) Do Begin
-    tmp := fMatrix * fPoints[i];
+  For i := 1 To high(fvertices) Do Begin
+    tmp := TransformedVertex[i];
     result.a := MinV3(result.a, tmp);
     result.B := MaxV3(result.B, tmp);
   End;
+End;
+
+Function TCorP3DCollider.Collide(Const other: TCorP3DCollider): Boolean;
+Begin
+  result := Collide2Objects(self, other);
+End;
+
+Procedure TCorP3DCollider.Finish;
+Begin
+  If Not assigned(fvertices) Then Begin
+    Raise exception.create('calling finish with no vertices');
+  End;
+  If fFinished Then exit;
+  fFinished := true;
+End;
+
+Function TCorP3DCollider.getTransformedVertex(index: integer): TVector3;
+Begin
+  If (index < 0) Or (index > high(fvertices)) Then Raise exception.create('Error, out of bounds.');
+  result := fMatrix * fvertices[index];
+End;
+
+Procedure TCorP3DCollider.setMass(AValue: Single);
+Begin
+  If fMass = AValue Then Exit;
+  fMass := AValue;
 End;
 
 Function TCorP3DCollider.getPosition: TVector3;
@@ -123,35 +208,63 @@ End;
 
 Function TCorP3DCollider.getVertex(index: integer): TVector3;
 Begin
-  If (index < 0) Or (index > high(fPoints)) Then Raise exception.create('Error, out of bounds.');
-  result := fPoints[index];
+  If (index < 0) Or (index > high(fvertices)) Then Raise exception.create('Error, out of bounds.');
+  result := fvertices[index];
 End;
 
 Function TCorP3DCollider.getVertexCount: integer;
 Begin
-  result := length(fPoints);
+  result := length(fvertices);
 End;
 
 Constructor TCorP3DCollider.Create;
 Begin
   Inherited create();
+  fFinished := false;
   fMass := 0;
   fCenterOfMass := v3(0, 0, 0);
   fMaterial := 0;
   fMatrix := IdentityMatrix4x4;
-  fPoints := Nil;
+  fvertices := Nil;
   fVelocity := v3(0, 0, 0);
 End;
 
 Destructor TCorP3DCollider.Destroy;
 Begin
-  setlength(fPoints, 0);
+  setlength(fvertices, 0);
 End;
 
 Procedure TCorP3DCollider.SetPoints(Const aPoints: TVector3Array);
+Var
+  i: Integer;
 Begin
   // TODO: die Punkte nicht einfach nur übernehmen, sondern tatsächlich noch mal die Convexe Hülle aus den Punkten berechnen
-  fPoints := aPoints;
+  fvertices := aPoints;
+  fFinished := false;
+  finside := fvertices[0];
+  For i := 1 To high(fvertices) Do Begin
+    finside := finside + fvertices[i];
+  End;
+  finside := finside / length(fvertices);
+End;
+
+{ TCorP3Plane }
+
+Procedure TCorP3Plane.setMass(AValue: Single);
+Begin
+  // a Plane is not allowed to have a mass !
+End;
+
+Constructor TCorP3Plane.Create(NormVector, BasePoint: TVector3);
+Begin
+  fNormVector := NormVector;
+  fBasePoint := BasePoint;
+  fRestitution := 0;
+End;
+
+Procedure TCorP3Plane.Finish;
+Begin
+  // nothing to do, this is a plane !
 End;
 
 { TCorP3DBox }
