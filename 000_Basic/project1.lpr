@@ -2,7 +2,7 @@
 (*                                                                            *)
 (* Author      : Uwe Schächterle (Corpsman)                                   *)
 (*                                                                            *)
-(* This file is part of OpenGL Clear Engine                                   *)
+(* This file is part of CorP3D                                                *)
 (*                                                                            *)
 (*  See the file license.md, located under:                                   *)
 (*  https://github.com/PascalCorpsman/Software_Licenses/blob/main/license.md  *)
@@ -21,8 +21,8 @@ Uses
   cthreads,
 {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, imagesforlazarus, Unit1, uCorP3D, dglOpenGL, ucorp3dtypes, 
-ucorp3dobjects;
+  Forms, imagesforlazarus, Unit1, uCorP3D, dglOpenGL, ucorp3dtypes,
+  ucorp3dobjects;
 
 Begin
   Application.Initialize;
