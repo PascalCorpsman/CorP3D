@@ -2,6 +2,13 @@
 
 Cor(psman)P(hysic)3D is my try to implement a 3D-Physics engine.
 
+>
+> ! Attention !
+>
+> This is a work in progress, don't expect anything to work yet, writing a 3D Physics engine
+> is a really tough task, ..
+> 
+
 #### Why this engine?
 
 When i started coding i used [Newton](http://newtondynamics.com/forum/newton.php) but since version 3 i have had to much trouble getting it to work, and the older versions are not available as source, so i was not able to continue using Newton.
