@@ -31,11 +31,30 @@ Function AABB(a, b: TVector3): TAABB;
 Operator = (a, b: TAABB): Boolean;
 Operator * (m: TMatrix4x4; v: TVector3): Tvector3;
 
+Function CalculateEncapsulatingSphere(Const Points: TVector3Array): TSphere;
+
 Procedure Nop();
 
 Implementation
 
 Uses math;
+
+Function CalculateEncapsulatingSphere(Const Points: TVector3Array): TSphere;
+Var
+  minV, maxV: TVector3;
+  i: Integer;
+Begin
+  // Calc a AABB
+  minV := Points[0];
+  maxV := Points[0];
+  For i := 1 To high(Points) Do Begin
+    minV := MinV3(minV, Points[i]);
+    maxV := MaxV3(maxV, Points[i]);
+  End;
+  // Put Sphere in the middle of AABB ;)
+  result.Center := (MinV + MaxV) / 2;
+  result.Radius := LenV3(MaxV - MinV) / 2;
+End;
 
 Function AABB(a, b: TVector3): TAABB;
 Begin

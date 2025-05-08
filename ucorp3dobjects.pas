@@ -31,6 +31,8 @@ Type
 
   TCorP3DCollider = Class
   private
+    fColliderSphere: TSphere; // For fast collision detection
+
     fFinished: Boolean; // True if all collision precalculations are made
     FForce: TVector3;
     fMaterial: integer;
@@ -119,6 +121,7 @@ Var
   p: TCorP3Plane;
   i: Integer;
   d: Single;
+  c1, c2: TVector3;
 Begin
   result := false;
   If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
@@ -143,7 +146,13 @@ Begin
     exit;
   End;
   If (a Is TCorP3DBox) And (b Is TCorP3DBox) Then Begin
-    // TODO: implement collision detection between 2 convex colliders
+    // 1. "Fast" Check to early skip collision detection by comparing the collision spheres ..
+    c1 := a.Matrix * a.fColliderSphere.Center;
+    c2 := b.Matrix * b.fColliderSphere.Center;
+    If LenV3SQR(c1 - c2) <= sqr(a.fColliderSphere.Radius + b.fColliderSphere.Radius) Then Begin
+      // TODO: implement collision detection between 2 convex colliders
+      nop();
+    End;
     exit;
   End;
   Raise exception.create('Error unhandled collision detection between ' + a.ClassName + ' and ' + b.ClassName);
@@ -178,6 +187,7 @@ Begin
   End;
   If fFinished Then exit;
   fFinished := true;
+  fColliderSphere := CalculateEncapsulatingSphere(fvertices);
 End;
 
 Function TCorP3DCollider.getTransformedVertex(index: integer): TVector3;
