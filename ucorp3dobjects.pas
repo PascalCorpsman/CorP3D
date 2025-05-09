@@ -23,6 +23,10 @@ Uses
 
 Type
 
+  TInterval = Record
+    val_min, val_max: TBaseType;
+  End;
+
   (*
    * Most basic Collider Class
    *)
@@ -32,7 +36,8 @@ Type
   TCorP3DCollider = Class
   private
     fColliderSphere: TSphere; // For fast collision detection
-
+    fConvexHullFaces: TFaceArray;
+    fSATAchsis: TVector3Array;
     fFinished: Boolean; // True if all collision precalculations are made
     FForce: TVector3;
     fMaterial: integer;
@@ -50,6 +55,7 @@ Type
     Function getVertex(index: integer): TVector3; virtual;
     Function getVertexCount: integer; virtual;
     Procedure SetPoints(Const aPoints: TVector3Array);
+    Function Getinterval(Const Axis: TVector3): TInterval;
   public
     UserData: PtrInt;
 
@@ -116,6 +122,16 @@ Implementation
 
 Uses math;
 
+Function col_overlap_axis(Const shape1, shape2: TCorP3DCollider; Const axis: TVector3): Boolean;
+Var
+  a, b: TInterval;
+Begin
+  a := shape1.GetInterval(axis);
+  b := shape2.GetInterval(axis);
+  // result := Not ((a.val_max < b.val_min) Or (a.val_min > b.val_max));
+  result := (b.val_min <= a.val_max) And (a.val_min <= b.val_max);
+End;
+
 Function Collide2Objects(Const A, B: TCorP3DCollider): Boolean;
 Var
   p: TCorP3Plane;
@@ -150,8 +166,19 @@ Begin
     c1 := a.Matrix * a.fColliderSphere.Center;
     c2 := b.Matrix * b.fColliderSphere.Center;
     If LenV3SQR(c1 - c2) <= sqr(a.fColliderSphere.Radius + b.fColliderSphere.Radius) Then Begin
-      // TODO: implement collision detection between 2 convex colliders
-      nop();
+      // Detect collision by SAT algorithm inspired by https://www.youtube.com/watch?v=VmtNPguCTjQ
+      result := true;
+      For i := 0 To high(a.fSATAchsis) Do Begin
+        If Not col_overlap_axis(a, b, a.fSATAchsis[i]) Then Begin
+          result := false;
+          exit;
+        End;
+      End;
+      If Result Then Begin
+        // TODO: Wie gehts nu weiter ?
+        a.Mass := 0;
+        b.Mass := 0;
+      End;
     End;
     exit;
   End;
@@ -181,13 +208,35 @@ Begin
 End;
 
 Procedure TCorP3DCollider.Finish;
+Var
+  i, j: Integer;
+  found: Boolean;
 Begin
   If Not assigned(fvertices) Then Begin
     Raise exception.create('calling finish with no vertices');
   End;
   If fFinished Then exit;
   fFinished := true;
+  (*
+   * Precalc as much as possible !
+   *)
   fColliderSphere := CalculateEncapsulatingSphere(fvertices);
+  fConvexHullFaces := PointsToConvexHull(fvertices);
+  // All Achses for SAT Calculation
+  setlength(fSATAchsis, 0);
+  For i := 0 To high(fConvexHullFaces) Do Begin
+    found := false;
+    For j := 0 To high(fSATAchsis) Do Begin
+      If IsLinearDependent(fSATAchsis[j], fConvexHullFaces[i].Normal) Then Begin
+        found := true;
+        break;
+      End;
+    End;
+    If Not found Then Begin
+      setlength(fSATAchsis, high(fSATAchsis) + 2);
+      fSATAchsis[high(fSATAchsis)] := fConvexHullFaces[i].Normal;
+    End;
+  End;
 End;
 
 Function TCorP3DCollider.getTransformedVertex(index: integer): TVector3;
@@ -237,6 +286,7 @@ Begin
   fMatrix := IdentityMatrix4x4;
   fvertices := Nil;
   fVelocity := v3(0, 0, 0);
+  fSATAchsis := Nil;
 End;
 
 Destructor TCorP3DCollider.Destroy;
@@ -256,6 +306,22 @@ Begin
     finside := finside + fvertices[i];
   End;
   finside := finside / length(fvertices);
+End;
+
+Function TCorP3DCollider.Getinterval(Const Axis: TVector3): TInterval;
+Var
+  i: integer;
+  tmp: TBaseType;
+Begin
+  // Project all Vertices onto the axis and calculate min / max interval
+  result.val_min := DotV3(Matrix * fvertices[0], Axis);
+  result.val_max := result.val_min;
+  For i := 1 To high(fvertices) Do Begin
+    // TODO: Als Optimierung muss Matrix * fvertices[i] 1 mal durch TCorP3DWorld.Step ausgelöst werden und nicht jedes Mal wenn Getinterval aufgerufen wird !
+    tmp := DotV3(Matrix * fvertices[i], Axis);
+    result.val_min := min(result.val_min, tmp);
+    result.val_max := max(result.val_max, tmp);
+  End;
 End;
 
 { TCorP3Plane }
