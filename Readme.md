@@ -13,7 +13,7 @@ Cor(psman)P(hysic)3D is my try to implement a 3D-Physics engine.
 
 When i started coding 3D games i used [Newton](http://newtondynamics.com/forum/newton.php), but since version 3 i have had to much trouble getting it to work, and the older versions are not available as source, so i was not able to continue using Newton.
 
-Next i tried [Kraft](https://github.com/BeRo1985/kraft) which is written in FreePascal and used in Castle Game Engine. I even tried to create first [Examples](https://github.com/PascalCorpsman/kraft_examples) as there is barely no documentation for Kraft. Creating this examples i figured out some "issues" and did not get any responce from the creator. So i had no choice as to abandon this work too :/.
+Next i tried [Kraft](https://github.com/BeRo1985/kraft) which is written in FreePascal and used in [Castle Game Engine](https://github.com/castle-engine/castle-engine). I even tried to create first [Examples](https://github.com/PascalCorpsman/kraft_examples) as there is barely no documentation for Kraft. Creating this examples i figured out some "issues" and did not get any responce from the creator. So i had no choice as to abandon this work too :/.
 
 So what's next, well trying to write a own Physic engine ;).
 
@@ -21,7 +21,7 @@ To be honest i am not shure whether i will be ever able to get a working version
 
 ### What is the aim of this engine ?
 
-- First priority is: understanding and writing 3D physics (i am a ok in IT, but with nearly no knowlege to physics 🙈)
+- First priority is: understanding and writing 3D physics (i am "ok" in IT, but with nearly no knowlege to physics 🙈)
 - Second priority is: bring the engine to a point where i can use it in [balanced2](https://corpsman.de/index.php?doc=projekte/balanced2)
 
 ### What is the planned roadmap ?
@@ -31,8 +31,8 @@ To be honest i am not shure whether i will be ever able to get a working version
 - Compound collissions (concave objects)
 - Support Planes ✅ (only static, not moving, not elastic)
 - Support spheres
-- Support cylinders
-- Support cones ?
+- Support cylinders (is that possible with SAT ?)
+- Support cones (is that possible with SAT ?)
 - Speedup the code execution by using all kind of optimizations like:
   - collision spheres (before SAT) ✅ 
   - [octree's](https://en.wikipedia.org/wiki/Octree)
