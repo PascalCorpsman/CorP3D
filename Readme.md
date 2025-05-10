@@ -31,3 +31,4 @@ Now you have everything to compile the engine. In order to be able to compile th
 
 ### Progress
 - 2025.05.04: created repository, readme.md and license.md
+- 2025.05.10: SAT Algorithm detects collision between convex hulls (no valid reaction yet)
