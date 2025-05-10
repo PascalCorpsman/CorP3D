@@ -35,27 +35,36 @@ Type
 
   TCorP3DCollider = Class
   private
-    fColliderSphere: TSphere; // For fast collision detection
+    (*
+     * Used during creation
+     *)
+    fRestitution: Single;
     fConvexHullFaces: TFaceArray;
-    fSATAchsis: TVector3Array;
     fFinished: Boolean; // True if all collision precalculations are made
-    FForce: TVector3;
     fMaterial: integer;
-    fCenterOfMass: TVector3;
     fMass: Single;
-    fMatrix: TMatrix4x4;
-    fvertices: TVector3Array;
+    fCenterOfMass: TVector3;
+    fVertices: TVector3Array;
+    fSATAchsis: TVector3Array;
+    (*
+     * Used during simulation
+     *)
+    fColliderSphere: TSphere; // For fast collision detection
+    fTransformedCenterOfMass: TVector3;
+    fTransformedVertices: TVector3Array;
+    fTransformedSATAchsis: TVector3Array;
+
+    fForce: TVector3;
     fVelocity: TVector3;
-    finside: TVector3;
-    Function getTransformedVertex(index: integer): TVector3;
+    fMatrix: TMatrix4x4; // Transformation Matrix
   protected
     Procedure setMass(AValue: Single); virtual;
     Function getPosition: TVector3; virtual;
     Procedure setPosition(AValue: TVector3); virtual;
     Function getVertex(index: integer): TVector3; virtual;
     Function getVertexCount: integer; virtual;
-    Procedure SetPoints(Const aPoints: TVector3Array);
     Function Getinterval(Const Axis: TVector3): TInterval;
+    Procedure UpdateTransformedValues(); virtual;
   public
     UserData: PtrInt;
 
@@ -65,8 +74,8 @@ Type
     Property Matrix: TMatrix4x4 read fMatrix write fMatrix;
     Property Mass: Single read fMass write setMass; // 0 = solid / not moveable !
     Property Position: TVector3 read getPosition write setPosition;
+    Property Restitution: Single read fRestitution write fRestitution; // 0 = No bounce, 1 = perfect bounce
 
-    Property TransformedVertex[index: integer]: TVector3 read getTransformedVertex;
     Property Vertex[index: integer]: TVector3 read getVertex;
     Property VertexCount: integer read getVertexCount;
 
@@ -75,10 +84,13 @@ Type
     Constructor Create(); virtual;
     Destructor Destroy(); override;
 
+    Procedure SetPoints(Const aPoints: TVector3Array); virtual; // Do not call in derived classes
+
     Function AABB: TAABB; virtual;
     Function Collide(Const other: TCorP3DCollider): Boolean; virtual;
 
     Procedure Finish; virtual; // Needed to be called every time after the vertex data is changed
+    Procedure Step(aDelta: Single);
   End;
 
 
@@ -86,12 +98,10 @@ Type
 
   TCorP3Plane = Class(TCorP3DCollider)
   private
-    fRestitution: Single;
     fNormVector, fBasePoint: TVector3;
   protected
     Procedure setMass(AValue: Single); override;
   public
-    Property Restitution: Single read fRestitution write fRestitution; // 0 = No bounce, 1 = perfect bounce
     Constructor Create(NormVector, BasePoint: TVector3); reintroduce;
     Procedure Finish; override;
   End;
@@ -101,6 +111,7 @@ Type
   TCorP3DBox = Class(TCorP3DCollider)
   private
     fDim: TVector3;
+  protected
   public
     Constructor Create(Dim: TVector3); reintroduce;
   End;
@@ -112,6 +123,7 @@ Type
     fCollider: Array Of TCorP3DCollider;
     Function getCollider(index: integer): TCorP3DCollider;
     Function getColliderCount: integer;
+  protected
   public
     Property Collider[index: integer]: TCorP3DCollider read getCollider;
     Property ColliderCount: integer read getColliderCount;
@@ -122,14 +134,19 @@ Implementation
 
 Uses math;
 
-Function col_overlap_axis(Const shape1, shape2: TCorP3DCollider; Const axis: TVector3): Boolean;
+Function col_overlap_axis(Const shape1, shape2: TCorP3DCollider; Const axis: TVector3; Out Overlap: Single): Boolean;
 Var
   a, b: TInterval;
+  overlapStart, overlapEnd: Single;
 Begin
   a := shape1.GetInterval(axis);
   b := shape2.GetInterval(axis);
-  // result := Not ((a.val_max < b.val_min) Or (a.val_min > b.val_max));
   result := (b.val_min <= a.val_max) And (a.val_min <= b.val_max);
+  If result Then Begin
+    overlapStart := Max(a.val_min, b.val_min);
+    overlapEnd := Min(a.val_max, b.val_max);
+    Overlap := overlapEnd - overlapStart;
+  End;
 End;
 
 Function Collide2Objects(Const A, B: TCorP3DCollider): Boolean;
@@ -138,6 +155,9 @@ Var
   i: Integer;
   d: Single;
   c1, c2: TVector3;
+  AchsisDepth, Depth: Single;
+  TiniestAchsisIndex: Integer;
+  SatColliderA, SatColliderB: TCorP3DCollider;
 Begin
   result := false;
   If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
@@ -151,7 +171,7 @@ Begin
     p := TCorP3Plane(a);
     d := 1;
     For i := 0 To high(B.fvertices) Do Begin
-      d := min(d, (B.TransformedVertex[i] - p.fBasePoint) * p.fNormVector);
+      d := min(d, (B.fTransformedVertices[i] - p.fBasePoint) * p.fNormVector);
     End;
     If d < 0 Then Begin
       // Move B object "above" the plane
@@ -161,23 +181,63 @@ Begin
     End;
     exit;
   End;
-  If (a Is TCorP3DBox) And (b Is TCorP3DBox) Then Begin
+  If (a Is TCorP3DCollider) And (b Is TCorP3DCollider) Then Begin
     // 1. "Fast" Check to early skip collision detection by comparing the collision spheres ..
     c1 := a.Matrix * a.fColliderSphere.Center;
     c2 := b.Matrix * b.fColliderSphere.Center;
     If LenV3SQR(c1 - c2) <= sqr(a.fColliderSphere.Radius + b.fColliderSphere.Radius) Then Begin
       // Detect collision by SAT algorithm inspired by https://www.youtube.com/watch?v=VmtNPguCTjQ
       result := true;
-      For i := 0 To high(a.fSATAchsis) Do Begin
-        If Not col_overlap_axis(a, b, a.fSATAchsis[i]) Then Begin
+      AchsisDepth := max(a.fColliderSphere.Radius, b.fColliderSphere.Radius) * 2;
+      TiniestAchsisIndex := -1;
+      SatColliderA := a;
+      SatColliderB := b;
+      For i := 0 To high(A.fSATAchsis) Do Begin
+        If col_overlap_axis(A, B, A.fTransformedSATAchsis[i], Depth) Then Begin
+          If AchsisDepth > depth Then Begin
+            TiniestAchsisIndex := i;
+            AchsisDepth := Depth;
+          End;
+        End
+        Else Begin
           result := false;
           exit;
         End;
       End;
-      If Result Then Begin
-        // TODO: Wie gehts nu weiter ?
-        a.Mass := 0;
-        b.Mass := 0;
+      // We need to check all achsis of Both Objects ..
+      For i := 0 To high(B.fSATAchsis) Do Begin
+        If col_overlap_axis(B, A, B.fTransformedSATAchsis[i], Depth) Then Begin
+          If AchsisDepth > depth Then Begin
+            TiniestAchsisIndex := i;
+            AchsisDepth := Depth;
+            SatColliderA := b;
+            SatColliderB := a;
+          End;
+        End
+        Else Begin
+          result := false;
+          exit;
+        End;
+      End;
+      // We have a collision now move the Objects in order to not collide anymore
+      // Case SatColliderA.Mass = 0 and SatColliderA.Mass = 0 is excluded on entry !
+      If SatColliderA.Mass <> 0 Then Begin
+        If SatColliderB.Mass <> 0 Then Begin
+          // Both move 50 %
+          // TODO: Hier fehlt noch die Beschleunigung, bzw damit auch die Berücksichtigung der Masse ...
+          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
+          SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
+        End
+        Else Begin
+          // Only A Moves
+          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth;
+          SatColliderA.Velocity := SatColliderA.Velocity - (1 + SatColliderB.fRestitution) * (SatColliderA.Velocity * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]) * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex];
+        End;
+      End
+      Else Begin
+        // Only B Moves
+        SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth;
+        SatColliderB.Velocity := SatColliderB.Velocity - (1 + SatColliderA.fRestitution) * (SatColliderB.Velocity * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]) * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex];
       End;
     End;
     exit;
@@ -193,10 +253,10 @@ Var
   tmp: TVector3;
 Begin
   If Not assigned(fvertices) Then Raise exception.create('no points');
-  result.a := fMatrix * fvertices[0];
+  result.a := fTransformedVertices[0];
   result.B := result.a;
   For i := 1 To high(fvertices) Do Begin
-    tmp := TransformedVertex[i];
+    tmp := fTransformedVertices[i];
     result.a := MinV3(result.a, tmp);
     result.B := MaxV3(result.B, tmp);
   End;
@@ -237,12 +297,24 @@ Begin
       fSATAchsis[high(fSATAchsis)] := fConvexHullFaces[i].Normal;
     End;
   End;
+  setlength(fTransformedSATAchsis, length(fSATAchsis));
+  setlength(fTransformedVertices, length(fVertices));
+  UpdateTransformedValues();
 End;
 
-Function TCorP3DCollider.getTransformedVertex(index: integer): TVector3;
+Procedure TCorP3DCollider.Step(aDelta: Single);
+Var
+  Acceleration: TVector3;
 Begin
-  If (index < 0) Or (index > high(fvertices)) Then Raise exception.create('Error, out of bounds.');
-  result := fMatrix * fvertices[index];
+  If fMass = 0 Then exit;
+  // Irgendwie muss die "interne" Verdrehung noch berücksichtigt werden
+  Acceleration := fForce / fMass;
+
+  fVelocity := fVelocity + Acceleration * aDelta;
+
+  Position := Position + fVelocity * aDelta;
+  // Update the Colliders Internals
+  UpdateTransformedValues();
 End;
 
 Procedure TCorP3DCollider.setMass(AValue: Single);
@@ -287,6 +359,7 @@ Begin
   fvertices := Nil;
   fVelocity := v3(0, 0, 0);
   fSATAchsis := Nil;
+  fRestitution := 0;
 End;
 
 Destructor TCorP3DCollider.Destroy;
@@ -295,17 +368,9 @@ Begin
 End;
 
 Procedure TCorP3DCollider.SetPoints(Const aPoints: TVector3Array);
-Var
-  i: Integer;
 Begin
-  // TODO: die Punkte nicht einfach nur übernehmen, sondern tatsächlich noch mal die Convexe Hülle aus den Punkten berechnen
-  fvertices := aPoints;
   fFinished := false;
-  finside := fvertices[0];
-  For i := 1 To high(fvertices) Do Begin
-    finside := finside + fvertices[i];
-  End;
-  finside := finside / length(fvertices);
+  fvertices := aPoints;
 End;
 
 Function TCorP3DCollider.Getinterval(Const Axis: TVector3): TInterval;
@@ -314,13 +379,30 @@ Var
   tmp: TBaseType;
 Begin
   // Project all Vertices onto the axis and calculate min / max interval
-  result.val_min := DotV3(Matrix * fvertices[0], Axis);
+  result.val_min := DotV3(fTransformedVertices[0], Axis);
   result.val_max := result.val_min;
   For i := 1 To high(fvertices) Do Begin
-    // TODO: Als Optimierung muss Matrix * fvertices[i] 1 mal durch TCorP3DWorld.Step ausgelöst werden und nicht jedes Mal wenn Getinterval aufgerufen wird !
-    tmp := DotV3(Matrix * fvertices[i], Axis);
+    tmp := DotV3(fTransformedVertices[i], Axis);
     result.val_min := min(result.val_min, tmp);
     result.val_max := max(result.val_max, tmp);
+  End;
+End;
+
+Procedure TCorP3DCollider.UpdateTransformedValues();
+Var
+  OnlyRotationMatrix: TMatrix4x4;
+  i: Integer;
+Begin
+  OnlyRotationMatrix := fMatrix;
+  OnlyRotationMatrix[3, 0] := 0;
+  OnlyRotationMatrix[3, 1] := 0;
+  OnlyRotationMatrix[3, 2] := 0;
+  For i := 0 To high(fVertices) Do Begin
+    fTransformedVertices[i] := fMatrix * fVertices[i];
+  End;
+  fTransformedCenterOfMass := fMatrix * fCenterOfMass;
+  For i := 0 To high(fSATAchsis) Do Begin
+    fTransformedSATAchsis[i] := OnlyRotationMatrix * fSATAchsis[i];
   End;
 End;
 
@@ -335,7 +417,6 @@ Constructor TCorP3Plane.Create(NormVector, BasePoint: TVector3);
 Begin
   fNormVector := NormVector;
   fBasePoint := BasePoint;
-  fRestitution := 0;
 End;
 
 Procedure TCorP3Plane.Finish;

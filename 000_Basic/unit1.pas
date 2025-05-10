@@ -27,7 +27,7 @@ Uses
    * Kommt ein Linkerfehler wegen OpenGL dann: sudo apt-get install freeglut3-dev
    *)
   dglOpenGL // http://wiki.delphigl.com/index.php/dglOpenGL.pas
-  , uCorP3D, ucorp3dobjects, ucorp3dtypes, uvectormath;
+  , uCorP3D, ucorp3dobjects, uvectormath;
 
 
 Const
@@ -250,8 +250,9 @@ End;
 
 Procedure TForm1.CreateWorldContent;
 Var
-  b: TCorP3DBox;
+  b: TCorP3DCollider;
   floor: TCorP3Plane;
+  pts: TVector3Array;
 Begin
   world.ClearWorldContent; // Cleanup
   // Create new World
@@ -262,7 +263,20 @@ Begin
   world.AddCollider(box);
 
   // 2. Create something to collide with ;)
-  b := TCorP3DBox.Create(v3(2, 1, 2));
+  // b := TCorP3DBox.Create(v3(2, 1, 2)); -- Instead of creating a Box, we create the collider by hand (see ToDo below)
+  b := TCorP3DCollider.create();
+  pts := Nil;
+  setlength(pts, 8);
+  pts[0] := v3(-2 / 2, -1 / 2, -2 / 2);
+  pts[1] := v3(-2 / 2, -1 / 2, 2 / 2);
+  pts[2] := v3(2 / 2, -1 / 2, 2 / 2);
+  pts[3] := v3(2 / 2, -1 / 2, -2 / 2);
+  pts[4] := v3(-2 / 2, 1 / 2, -2 / 2);
+  pts[5] := v3(-2 / 2, 1 / 2, 2 / 2);
+  pts[6] := v3(2 / 2, 1 / 2, 2 / 2);
+  pts[7] := v3(2 / 2, 1 / 2, -2 / 2);
+  // setlength(pts, 6); // TODO: -- What happens if you enable this line ? :)
+  b.SetPoints(pts);
   b.Position := v3(0, 0.5, 0);
   world.AddCollider(b);
 

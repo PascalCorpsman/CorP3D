@@ -128,7 +128,6 @@ End;
 Procedure TCorP3DWorld.Step(aDelta: Single);
 Var
   i, j: Integer;
-  Acceleration: TVector3;
 Begin
   If Not assigned(OnForceAndTorqueCallback) Then exit;
   For i := 0 To high(fColliders) Do Begin
@@ -138,11 +137,7 @@ Begin
     End
     Else Begin
       OnForceAndTorqueCallback(fColliders[i], aDelta);
-      // 2. Update all Velocities
-      Acceleration := fColliders[i].Force / fColliders[i].Mass;
-      fColliders[i].Velocity := fColliders[i].Velocity + Acceleration * aDelta;
-
-      fColliders[i].Position := fColliders[i].Position + fColliders[i].Velocity * aDelta;
+      fColliders[i].Step(aDelta);
     End;
   End;
   // Collide with others
