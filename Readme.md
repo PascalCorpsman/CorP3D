@@ -44,7 +44,7 @@ To be honest i am not shure whether i will be ever able to get a working version
 
 This does not mean that there will be some point in far future where i include all that fancy stuff.
 
-### You found bug or you know a good physics tutorial ?
+### You found a bug or you know a good physics tutorial ?
 
 Yes, please contact me, contribute to this project and help to improve it. 
 
