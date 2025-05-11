@@ -388,21 +388,16 @@ Begin
   End;
 End;
 
-Procedure TCorP3DCollider.UpdateTransformedValues();
+Procedure TCorP3DCollider.UpdateTransformedValues;
 Var
-  OnlyRotationMatrix: TMatrix4x4;
   i: Integer;
 Begin
-  OnlyRotationMatrix := fMatrix;
-  OnlyRotationMatrix[3, 0] := 0;
-  OnlyRotationMatrix[3, 1] := 0;
-  OnlyRotationMatrix[3, 2] := 0;
   For i := 0 To high(fVertices) Do Begin
-    fTransformedVertices[i] := fMatrix * fVertices[i];
+    fTransformedVertices[i] := fMatrix * v4(fVertices[i], 1);
   End;
-  fTransformedCenterOfMass := fMatrix * fCenterOfMass;
+  fTransformedCenterOfMass := fMatrix * v4(fCenterOfMass, 1);
   For i := 0 To high(fSATAchsis) Do Begin
-    fTransformedSATAchsis[i] := OnlyRotationMatrix * fSATAchsis[i];
+    fTransformedSATAchsis[i] := fMatrix * v4(fSATAchsis[i], 0);
   End;
 End;
 
