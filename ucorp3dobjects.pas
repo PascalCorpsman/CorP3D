@@ -65,6 +65,7 @@ Type
     Function getVertexCount: integer; virtual;
     Function Getinterval(Const Axis: TVector3): TInterval;
     Procedure UpdateTransformedValues(); virtual;
+    Function GetContactPoints(Const SATAchsisIndex: Integer): TVector3Array;
   public
     UserData: PtrInt;
 
@@ -132,7 +133,9 @@ Type
 
 Implementation
 
-Uses math;
+Uses math
+  , unit1 // Debug !
+  ;
 
 Function col_overlap_axis(Const shape1, shape2: TCorP3DCollider; Const axis: TVector3; Out Overlap: Single): Boolean;
 Var
@@ -154,10 +157,11 @@ Var
   p: TCorP3Plane;
   i: Integer;
   d: Single;
-  c1, c2: TVector3;
+  c1, c2, ptA, ptB: TVector3;
   AchsisDepth, Depth: Single;
   TiniestAchsisIndex: Integer;
   SatColliderA, SatColliderB: TCorP3DCollider;
+  ContactPointsA: TVector3Array;
 Begin
   result := false;
   If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
@@ -219,8 +223,23 @@ Begin
           exit;
         End;
       End;
-      // We have a collision now move the Objects in order to not collide anymore
-      // Case SatColliderA.Mass = 0 and SatColliderA.Mass = 0 is excluded on entry !
+      // Berechnen des möglichst exakten "Kollisionspunktes"
+//      ContactPointsA := SatColliderA.GetContactPoints(TiniestAchsisIndex);
+
+      //      Das geht nicht, warum ?
+
+//      ptA := SatColliderA.GetContactPoint(-SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]);
+//      ptB := SatColliderB.GetContactPoint(SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]);
+//      ContactPoint := (pta + ptb) / 2;
+//      ColP := ContactPoint;
+
+      //      SatColliderA.Mass := 0;
+      //      SatColliderB.Mass := 0;
+
+      //      exit;
+            // Calculate Contact Point
+            // We have a collision now move the Objects in order to not collide anymore
+            // Case SatColliderA.Mass = 0 and SatColliderA.Mass = 0 is excluded on entry !
       If SatColliderA.Mass <> 0 Then Begin
         If SatColliderB.Mass <> 0 Then Begin
           // Both move 50 %
@@ -398,6 +417,62 @@ Begin
   fTransformedCenterOfMass := fMatrix * v4(fCenterOfMass, 1);
   For i := 0 To high(fSATAchsis) Do Begin
     fTransformedSATAchsis[i] := fMatrix * v4(fSATAchsis[i], 0);
+  End;
+End;
+
+Function TCorP3DCollider.GetContactPoints(Const SATAchsisIndex: Integer
+  ): TVector3Array;
+Var
+  i, j: Integer;
+  v: TVector3;
+  found: Boolean;
+Begin
+  result := Nil;
+  // Search all convex hull faces by comparing the satAchsis Normals and collect
+  // The their points
+  For i := 0 To high(fConvexHullFaces) Do Begin
+    If LenV3SQR(fConvexHullFaces[i].Normal - fSATAchsis[SATAchsisIndex]) <= Epsilon * Epsilon Then Begin
+      // Add all Points of the face to result if not already existing.
+      // TODO: rework code so that repetitive part is separated
+      v := fTransformedVertices[fConvexHullFaces[i].a];
+      found := false;
+      For j := 0 To high(result) Do Begin
+        If LenV3SQR(result[j] - v) <= Epsilon * Epsilon Then Begin
+          found := true;
+          break;
+        End;
+      End;
+      If Not found Then Begin
+        setlength(result, high(result) + 2);
+        result[high(result)] := v;
+      End;
+      v := fTransformedVertices[fConvexHullFaces[i].b];
+      found := false;
+      For j := 0 To high(result) Do Begin
+        If LenV3SQR(result[j] - v) <= Epsilon * Epsilon Then Begin
+          found := true;
+          break;
+        End;
+      End;
+      If Not found Then Begin
+        setlength(result, high(result) + 2);
+        result[high(result)] := v;
+      End;
+
+      v := fTransformedVertices[fConvexHullFaces[i].c];
+      found := false;
+      For j := 0 To high(result) Do Begin
+        If LenV3SQR(result[j] - v) <= Epsilon * Epsilon Then Begin
+          found := true;
+          break;
+        End;
+      End;
+      If Not found Then Begin
+        setlength(result, high(result) + 2);
+        result[high(result)] := v;
+      End;
+
+    End;
   End;
 End;
 
