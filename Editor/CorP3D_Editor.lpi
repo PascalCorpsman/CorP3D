@@ -45,7 +45,7 @@
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="10">
+    <Units Count="9">
       <Unit0>
         <Filename Value="CorP3D_Editor.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -64,35 +64,30 @@
         <UnitName Value="uCorP3D"/>
       </Unit2>
       <Unit3>
-        <Filename Value="../../OpenGL/dglopengl.pas"/>
+        <Filename Value="../ucorp3dtypes.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="dglOpenGL"/>
       </Unit3>
       <Unit4>
-        <Filename Value="../ucorp3dtypes.pas"/>
+        <Filename Value="../ucorp3dobjects.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="../ucorp3dobjects.pas"/>
+        <Filename Value="../../DatenSteuerung/uquaternion.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="../../DatenSteuerung/uquaternion.pas"/>
+        <Filename Value="../../OpenGL/uopengl_camera.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="../../OpenGL/uopengl_camera.pas"/>
+        <Filename Value="../../DatenSteuerung/uvectormath.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="../../DatenSteuerung/uvectormath.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit8>
-      <Unit9>
         <Filename Value="ueditor.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="uEditor"/>
-      </Unit9>
+      </Unit8>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
