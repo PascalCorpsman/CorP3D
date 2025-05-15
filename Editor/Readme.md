@@ -1,4 +1,4 @@
-# User Manual for CorP3D Editor
+# CorP3D Editor
 
 This is the Editor, that helped developing CorP3D, ..
 
