@@ -71,8 +71,6 @@ Var
   Form1: TForm1;
   Initialized: Boolean = false; // Wenn True dann ist OpenGL initialisiert
 
-  colP: TVector3;
-
 Implementation
 
 {$R *.lfm}
@@ -361,11 +359,6 @@ Begin
     End;
     glPopMatrix;
   End;
-  glPointSize(10);
-  glbegin(GL_POINTS);
-  glVertex3fv(@colP);
-  glend;
-  glPointSize(1);
 End;
 
 Procedure TForm1.OnForceAndTorque(Const aCollider: TCorP3DCollider;

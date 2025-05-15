@@ -63,11 +63,13 @@ Type
     CheckBox2: TCheckBox;
     CheckBox3: TCheckBox;
     GroupBox1: TGroupBox;
+    Label1: TLabel;
     OpenGLControl1: TOpenGLControl;
     Timer1: TTimer;
     Procedure Button1Click(Sender: TObject);
     Procedure FormCloseQuery(Sender: TObject; Var CanClose: Boolean);
     Procedure FormCreate(Sender: TObject);
+    Procedure FormKeyDown(Sender: TObject; Var Key: Word; Shift: TShiftState);
     Procedure OpenGLControl1MakeCurrent(Sender: TObject; Var Allow: boolean);
     Procedure OpenGLControl1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
@@ -88,9 +90,12 @@ Type
     EyeZoom: Single;
     MouseInfo: TMouseInfo;
     EditorObjects: Array Of TCorP3DCollider;
+    PickedEditorObjectIndex: integer;
 
     Procedure OnForceAndTorque(Const aCollider: TCorP3DCollider; delta: Single);
     Procedure RenderSzene;
+    Procedure PickEditorObject(x, y: Integer);
+    Procedure CheckCollision;
   public
     { public declarations }
   End;
@@ -102,6 +107,8 @@ Var
 Implementation
 
 {$R *.lfm}
+
+Uses LCLType;
 
 Const
   MouseSensitivity = 0.5;
@@ -144,6 +151,9 @@ Procedure TForm1.OpenGLControl1MouseDown(Sender: TObject; Button: TMouseButton;
 Begin
   MouseInfo.Down := true;
   MouseInfo.DownPos := point(x, y);
+  If ssleft In shift Then Begin
+    PickEditorObject(x, y);
+  End;
 End;
 
 Procedure TForm1.OpenGLControl1MouseMove(Sender: TObject; Shift: TShiftState;
@@ -154,15 +164,34 @@ Begin
   dx := (MouseInfo.DownPos.x - x) * MouseSensitivity;
   dy := (MouseInfo.DownPos.Y - y) * MouseSensitivity;
   If (ssRight In shift) Then Begin
-    If ssShift In Shift Then Begin
-      eye.TranslateByWorld((-dx / 2) * EyeZoom, (dy / 2) * EyeZoom, 0);
+    If PickedEditorObjectIndex <> -1 Then Begin
+      If EditorObjects[PickedEditorObjectIndex] Is IDebugInterface Then Begin
+        If ssShift In Shift Then Begin
+          (EditorObjects[PickedEditorObjectIndex] As IDebugInterface).Translate((dx / 10) * EyeZoom, (dy / 10) * EyeZoom, 0);
+        End
+        Else Begin
+          (EditorObjects[PickedEditorObjectIndex] As IDebugInterface).Translate((dx / 10) * EyeZoom, 0, (dy / 10) * EyeZoom);
+        End;
+        CheckCollision;
+      End;
     End
     Else Begin
-      eye.TranslateByWorld(-(dx / 2) * EyeZoom, 0, -(dy / 2) * EyeZoom);
+      If ssShift In Shift Then Begin
+        eye.TranslateByWorld((-dx / 2) * EyeZoom, (dy / 2) * EyeZoom, 0);
+      End
+      Else Begin
+        eye.TranslateByWorld(-(dx / 2) * EyeZoom, 0, -(dy / 2) * EyeZoom);
+      End;
     End;
   End;
   If (ssLeft In shift) Then Begin
-    eye.Rotate(-dy, dx, 0);
+    If PickedEditorObjectIndex <> -1 Then Begin
+      // TODO: Object Rotation..
+
+    End
+    Else Begin
+      eye.Rotate(-dy, dx, 0);
+    End;
   End;
   MouseInfo.DownPos := point(x, y);
 End;
@@ -208,11 +237,6 @@ Begin
 
   RenderSzene;
 
-  If EditorObjects[0] Is IRenderInterface Then Begin
-    (EditorObjects[0] As IRenderInterface).Render;
-  End;
-
-
   OpenGLControl1.SwapBuffers;
 End;
 
@@ -244,11 +268,39 @@ Begin
   Timer1.Interval := 17;
   MouseInfo.Down := false;
   Eye := TOpenGLCamera.Create(v3(0, 5, -10), v3(0, 0, 0), v3(0, 1, 0));
-  //World := TCorP3DWorld.Create();
-  //world.OnForceAndTorqueCallback := @OnForceAndTorque;
+  // World := TCorP3DWorld.Create();
+  // world.OnForceAndTorqueCallback := @OnForceAndTorque;
   Button1Click(Nil); // Rest eye
-  setlength(EditorObjects, 1);
-  EditorObjects[0] := TEditorBox.create(v3(2, 1, 2));
+  PickedEditorObjectIndex := -1;
+End;
+
+Procedure TForm1.FormKeyDown(Sender: TObject; Var Key: Word; Shift: TShiftState
+  );
+Var
+  i: Integer;
+Begin
+  If key = VK_B Then Begin
+    If ssShift In shift Then Begin
+      setlength(EditorObjects, high(EditorObjects) + 2);
+      EditorObjects[high(EditorObjects)] := TEditorBox.create(v3(2, 2, 2));
+      EditorObjects[high(EditorObjects)].Mass := 8; // Mass = Volume
+      EditorObjects[high(EditorObjects)].Finish;
+    End
+    Else Begin
+      setlength(EditorObjects, high(EditorObjects) + 2);
+      EditorObjects[high(EditorObjects)] := TEditorBox.create(v3(1, 1, 1));
+      EditorObjects[high(EditorObjects)].Mass := 1; // Mass = Volume
+      EditorObjects[high(EditorObjects)].Finish;
+    End;
+  End;
+  // Löschen des Aktuell angewählten Objects
+  If (key = VK_DELETE) And (PickedEditorObjectIndex <> -1) Then Begin
+    EditorObjects[PickedEditorObjectIndex].Free;
+    For i := PickedEditorObjectIndex To high(EditorObjects) - 1 Do Begin
+      EditorObjects[i] := EditorObjects[i + 1];
+    End;
+    setlength(EditorObjects, high(EditorObjects));
+  End;
 End;
 
 Procedure TForm1.FormCloseQuery(Sender: TObject; Var CanClose: Boolean);
@@ -312,20 +364,65 @@ Begin
     End;
     glend();
   End;
-  (* -- Einfärgen der Hauptachsen = wie beim Gizmo
-  glColor3f(1, 0, 0);
-  glvertex3f(0, 0, 0);
-  glvertex3f(10, 0, 0);
-  glColor3f(0, 1, 0);
-  glvertex3f(0, 0, 0);
-  glvertex3f(0, 10, 0);
-  glColor3f(0, 0, 1);
-  glvertex3f(0, 0, 0);
-  glvertex3f(0, 0, 10);
-  *)
+  For i := 0 To high(EditorObjects) Do Begin
+    // Normal Render
+    If EditorObjects[i] Is IRenderInterface Then Begin
+      (EditorObjects[i] As IRenderInterface).Render;
+    End;
+    // End Normal Render *)
 
+    (* // Debug Render
+    If EditorObjects[i] Is IIsPickableInterface Then Begin
+      (EditorObjects[i] As IIsPickableInterface).RenderForPicking(255);
+    End;
+    // End Debug Render *)
+  End;
+End;
 
+Procedure TForm1.PickEditorObject(x, y: Integer);
+Var
+  i: Integer;
+Begin
+  PickedEditorObjectIndex := -1;
+  glPushMatrix;
+  // Löschen des Framebuffers
+  glClear(GL_COLOR_BUFFER_BIT Or GL_DEPTH_BUFFER_BIT);
+  // TODO: Abschalten von Lightning und allem was die Farben Stören könnte !
+  // Render for Picking
+  For i := 0 To high(EditorObjects) Do Begin
+    If EditorObjects[i] Is IIsPickableInterface Then Begin
+      (EditorObjects[i] As IIsPickableInterface).RenderForPicking(i + 1);
+    End;
+  End;
+  // Read the Element Color = ID
+  glReadPixels(X, OpenGLControl1.Height - Y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, @i);
+  PickedEditorObjectIndex := (i And $FFFFFF) - 1;
+  If PickedEditorObjectIndex <> -1 Then Begin
+    (EditorObjects[PickedEditorObjectIndex] As IIsPickableInterface).Select;
+  End;
+  glPopMatrix;
+End;
 
+Procedure TForm1.CheckCollision;
+Var
+  i: Integer;
+Begin
+  If PickedEditorObjectIndex = -1 Then exit;
+  For i := 0 To high(EditorObjects) Do Begin
+    If EditorObjects[i] Is IDebugInterface Then Begin
+      (EditorObjects[i] As IDebugInterface).UpdateTransformedValues();
+    End;
+  End;
+  For i := 0 To high(EditorObjects) Do Begin
+    If i = PickedEditorObjectIndex Then Continue;
+    If EditorObjects[i] Is IDebugInterface Then Begin
+      If Collide2Objects(EditorObjects[i], EditorObjects[PickedEditorObjectIndex]) Then Begin
+        label1.Visible := true;
+        exit;
+      End;
+    End;
+  End;
+  label1.Visible := false;
 End;
 
 Procedure TForm1.OnForceAndTorque(Const aCollider: TCorP3DCollider;
@@ -335,4 +432,6 @@ Begin
 End;
 
 End.
+
+
 

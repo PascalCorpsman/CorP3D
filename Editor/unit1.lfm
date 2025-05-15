@@ -12,11 +12,13 @@ object Form1: TForm1
   LCLVersion = '4.99.0.0'
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
   object OpenGLControl1: TOpenGLControl
     Left = 176
     Height = 480
     Top = 8
     Width = 640
+    Anchors = [akTop, akLeft, akRight, akBottom]
     OnMakeCurrent = OpenGLControl1MakeCurrent
     OnMouseDown = OpenGLControl1MouseDown
     OnMouseMove = OpenGLControl1MouseMove
@@ -28,11 +30,11 @@ object Form1: TForm1
   end
   object GroupBox1: TGroupBox
     Left = 8
-    Height = 480
+    Height = 400
     Top = 8
     Width = 161
     Caption = ' Szene '
-    ClientHeight = 463
+    ClientHeight = 383
     ClientWidth = 159
     TabOrder = 1
     object CheckBox1: TCheckBox
@@ -43,33 +45,43 @@ object Form1: TForm1
       Caption = 'Play'
       TabOrder = 0
     end
-    object Button1: TButton
+    object Label1: TLabel
       Left = 8
-      Height = 25
-      Top = 432
-      Width = 144
-      Caption = 'Reset cam'
-      TabOrder = 1
-      OnClick = Button1Click
+      Height = 16
+      Top = 32
+      Width = 50
+      Caption = 'collision'
+      Font.Color = clRed
+      ParentFont = False
+      Visible = False
     end
-    object CheckBox2: TCheckBox
-      Left = 8
-      Height = 22
-      Top = 408
-      Width = 97
-      Caption = 'show cursor'
-      TabOrder = 2
-    end
-    object CheckBox3: TCheckBox
-      Left = 8
-      Height = 22
-      Top = 384
-      Width = 49
-      Caption = 'Grid'
-      Checked = True
-      State = cbChecked
-      TabOrder = 3
-    end
+  end
+  object Button1: TButton
+    Left = 16
+    Height = 25
+    Top = 463
+    Width = 144
+    Caption = 'Reset cam'
+    TabOrder = 2
+    OnClick = Button1Click
+  end
+  object CheckBox2: TCheckBox
+    Left = 16
+    Height = 22
+    Top = 439
+    Width = 97
+    Caption = 'show cursor'
+    TabOrder = 3
+  end
+  object CheckBox3: TCheckBox
+    Left = 16
+    Height = 22
+    Top = 415
+    Width = 49
+    Caption = 'Grid'
+    Checked = True
+    State = cbChecked
+    TabOrder = 4
   end
   object Timer1: TTimer
     OnTimer = Timer1Timer
