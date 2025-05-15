@@ -48,7 +48,7 @@ This does not mean that there will be some point in far future where i include a
 
 Yes, please contact me, contribute to this project and help to improve it. 
 
-### What is needed to compile and run the examples ?
+### What is needed to compile and run the code ?
 
 1. clone this repository
 2. download [uvectormath.pas](https://github.com/PascalCorpsman/Examples/blob/master/data_control/uvectormath.pas)
@@ -58,7 +58,14 @@ Now you have everything to compile the engine. In order to be able to compile th
 1. install LazOpenGLControl into the Lazarus IDE
 2. download [dglOpenGL.pas](https://github.com/SaschaWillems/dglOpenGL/blob/master/dglOpenGL.pas)
 
+If you also want to compile the editor you additionally need to download:
+
+1. download [uquaternion.pas](https://github.com/PascalCorpsman/Examples/blob/master/data_control/uquaternion.pas)
+2. download [uopengl_camera.pas](https://github.com/PascalCorpsman/Examples/blob/master/OpenGL/uopengl_camera.pas)
+
+
 ### Progress
 - 2025.05.04: created repository, readme.md and license.md
 - 2025.05.04: Implement basic Object structure, add plane and box, detect collisions between plane and box
 - 2025.05.10: SAT Algorithm detects collision between convex hulls (no valid reaction yet)
+- 2025.05.15: start with editor

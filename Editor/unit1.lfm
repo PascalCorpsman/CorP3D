@@ -1,0 +1,79 @@
+object Form1: TForm1
+  Left = 323
+  Height = 495
+  Top = 107
+  Width = 824
+  ActiveControl = OpenGLControl1
+  Caption = 'Form1'
+  ClientHeight = 495
+  ClientWidth = 824
+  KeyPreview = True
+  Position = poScreenCenter
+  LCLVersion = '4.99.0.0'
+  OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
+  object OpenGLControl1: TOpenGLControl
+    Left = 176
+    Height = 480
+    Top = 8
+    Width = 640
+    OnMakeCurrent = OpenGLControl1MakeCurrent
+    OnMouseDown = OpenGLControl1MouseDown
+    OnMouseMove = OpenGLControl1MouseMove
+    OnMouseUp = OpenGLControl1MouseUp
+    OnMouseWheelDown = OpenGLControl1MouseWheelDown
+    OnMouseWheelUp = OpenGLControl1MouseWheelUp
+    OnPaint = OpenGLControl1Paint
+    OnResize = OpenGLControl1Resize
+  end
+  object GroupBox1: TGroupBox
+    Left = 8
+    Height = 480
+    Top = 8
+    Width = 161
+    Caption = ' Szene '
+    ClientHeight = 463
+    ClientWidth = 159
+    TabOrder = 1
+    object CheckBox1: TCheckBox
+      Left = 8
+      Height = 22
+      Top = 0
+      Width = 50
+      Caption = 'Play'
+      TabOrder = 0
+    end
+    object Button1: TButton
+      Left = 8
+      Height = 25
+      Top = 432
+      Width = 144
+      Caption = 'Reset cam'
+      TabOrder = 1
+      OnClick = Button1Click
+    end
+    object CheckBox2: TCheckBox
+      Left = 8
+      Height = 22
+      Top = 408
+      Width = 97
+      Caption = 'show cursor'
+      TabOrder = 2
+    end
+    object CheckBox3: TCheckBox
+      Left = 8
+      Height = 22
+      Top = 384
+      Width = 49
+      Caption = 'Grid'
+      Checked = True
+      State = cbChecked
+      TabOrder = 3
+    end
+  end
+  object Timer1: TTimer
+    OnTimer = Timer1Timer
+    Left = 192
+    Top = 24
+  end
+end
