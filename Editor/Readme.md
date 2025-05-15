@@ -6,5 +6,7 @@ This is the Editor, that helped developing CorP3D, ..
 
 # Controls
 
-Left Mouse + Mouse Move = Camera Rotation
-Right Mouse + Mouse Move = Camera Translation
+| command | description |
+| --- | --- |
+| Left Mouse + Mouse Move | Camera / selected object Rotation 
+| Right Mouse + Mouse Move | Camera / selected object Translation
