@@ -461,6 +461,7 @@ Begin
     EditorObjects[i].Free;
   End;
   CheckBox1.Checked := false;
+  PickedEditorObjectIndex := -1;
 End;
 
 Procedure TForm1.SaveSceneToFile(Const aFileName: String);
@@ -473,6 +474,7 @@ Begin
   f.Write(FileVersion, sizeof(FileVersion));
   eye.SaveToStream(f);
   f.Write(EyeZoom, sizeof(EyeZoom));
+  f.Write(PickedEditorObjectIndex, sizeof(PickedEditorObjectIndex));
   // 2. Alle Objekte
   i := length(EditorObjects);
   f.Write(i, sizeof(i));
@@ -510,7 +512,8 @@ Begin
   ClearScene();
   eye.loadFromStream(f);
   f.Read(EyeZoom, sizeof(EyeZoom));
-  //  // 2. Alle Objekte
+  f.Read(PickedEditorObjectIndex, sizeof(PickedEditorObjectIndex));
+  // 2. Alle Objekte
   i := 0;
   f.Read(i, sizeof(i));
   setlength(EditorObjects, i);
@@ -532,6 +535,9 @@ Begin
   End;
   f.free;
   CheckCollision();
+  If PickedEditorObjectIndex <> -1 Then Begin
+    (EditorObjects[PickedEditorObjectIndex] As IIsPickableInterface).Select;
+  End;
 End;
 
 Procedure TForm1.OnForceAndTorque(Const aCollider: TCorP3DCollider;

@@ -111,6 +111,7 @@ Begin
   aStream.Read(aFileVersion, sizeof(aFileVersion));
   If aFileVersion > FileVersion Then exit;
   result := true;
+  fSelected := false;
 
   astream.Read(fRestitution, SizeOf(fRestitution));
   astream.Read(fMaterial, SizeOf(fMaterial));
