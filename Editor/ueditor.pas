@@ -34,13 +34,27 @@ Type
     Procedure UpdateTransformedValues();
   End;
 
+  { TSafeableInterface }
+
+  TSaveableInterface = Interface
+    ['{D31DA7F1-D95D-426A-A51C-B54956800EE6}']
+    Function LoadFromStream(Const astream: TStream): Boolean;
+    Procedure SaveToStream(Const astream: TStream);
+  End;
+
   { TEditorBox }
 
-  TEditorBox = Class(TCorP3DBox, IRenderInterface, IIsPickableInterface, IDebugInterface)
+  TEditorBox = Class(TCorP3DBox, IRenderInterface, IIsPickableInterface, IDebugInterface, TSaveableInterface)
     fSelected: Boolean;
+  private
+    FileVersion: Integer;
   public
 
     Constructor Create(Dim: TVector3); override;
+
+    // TSafeableInterface
+    Procedure SaveToStream(Const astream: TStream); virtual;
+    Function LoadFromStream(Const astream: TStream): Boolean; virtual;
 
     // IDebugInterface
     Procedure Translate(x, y, z: Single);
@@ -62,7 +76,58 @@ Uses dglOpenGL;
 Constructor TEditorBox.Create(Dim: TVector3);
 Begin
   Inherited Create(Dim);
+  FileVersion := 001;
   fSelected := false;
+End;
+
+Procedure TEditorBox.SaveToStream(Const astream: TStream);
+Var
+  i: Integer;
+Begin
+  aStream.Write(FileVersion, sizeof(FileVersion));
+
+  astream.Write(fRestitution, SizeOf(fRestitution));
+  astream.Write(fMaterial, SizeOf(fMaterial));
+  astream.Write(fMass, SizeOf(fMass));
+  astream.Write(fCenterOfMass, SizeOf(fCenterOfMass));
+  i := length(fVertices);
+  astream.Write(i, SizeOf(i));
+  For i := 0 To high(fVertices) Do Begin
+    astream.Write(fVertices[i], SizeOf(fVertices[i]));
+  End;
+
+  aStream.Write(fMatrix, sizeof(fMatrix));
+  aStream.Write(fVelocity, sizeof(fVelocity));
+  aStream.Write(fForce, sizeof(fForce));
+End;
+
+Function TEditorBox.LoadFromStream(Const astream: TStream): Boolean;
+Var
+  aFileVersion, i: integer;
+Begin
+  result := false;
+  aFileVersion := -1;
+
+  aStream.Read(aFileVersion, sizeof(aFileVersion));
+  If aFileVersion > FileVersion Then exit;
+  result := true;
+
+  astream.Read(fRestitution, SizeOf(fRestitution));
+  astream.Read(fMaterial, SizeOf(fMaterial));
+  astream.Read(fMass, SizeOf(fMass));
+  astream.Read(fCenterOfMass, SizeOf(fCenterOfMass));
+  i := 0;
+  astream.Read(i, SizeOf(i));
+  setlength(fVertices, i);
+  For i := 0 To high(fVertices) Do Begin
+    astream.Read(fVertices[i], SizeOf(fVertices[i]));
+  End;
+
+  aStream.Read(fMatrix, sizeof(fMatrix));
+  aStream.Read(fVelocity, sizeof(fVelocity));
+  aStream.Read(fForce, sizeof(fForce));
+
+  Finish;
 End;
 
 Procedure TEditorBox.Translate(x, y, z: Single);
@@ -150,9 +215,4 @@ Begin
 End;
 
 End.
-
-
-
-
-
 

@@ -35,25 +35,35 @@ Type
 
   TCorP3DCollider = Class
   private
+    fWorld: Pointer;
+    Procedure SetWorld(AValue: Pointer);
+  protected
     (*
      * Used during creation
      *)
     fRestitution: Single;
-    fConvexHullFaces: TFaceArray;
-    fFinished: Boolean; // True if all collision precalculations are made
     fMaterial: integer;
     fMass: Single;
     fCenterOfMass: TVector3;
     fVertices: TVector3Array;
-    fSATAchsis: TVector3Array;
     (*
-     * Used during simulation
+     * Used during simulation -> Will be initialized by Finish
      *)
+    fFinished: Boolean; // True if all collision precalculations are made
     fColliderSphere: TSphere; // For fast collision detection
-    fTransformedCenterOfMass: TVector3;
+    fConvexHullFaces: TFaceArray;
+    fSATAchsis: TVector3Array;
+
+    (*
+     * Used during simulation -> Will be updated by UpdateTransformedValues
+     *)
     fTransformedVertices: TVector3Array;
+    fTransformedCenterOfMass: TVector3;
     fTransformedSATAchsis: TVector3Array;
 
+    (*
+     * Used during simulation -> Will be updated by Step
+     *)
     fForce: TVector3;
     fVelocity: TVector3;
     fMatrix: TMatrix4x4; // Transformation Matrix
@@ -68,6 +78,7 @@ Type
     Function GetContactPoints(Const SATAchsisIndex: Integer): TVector3Array;
   public
     UserData: PtrInt;
+    Property World: Pointer read fWorld write SetWorld; // Only TCorP3DWorld allowed will be automatically set by "TCorP3DWorld.AddCollider"
 
     Property CenterOfMass: TVector3 read fCenterOfMass write fCenterOfMass;
     Property Force: TVector3 read FForce write FForce;
@@ -98,7 +109,7 @@ Type
   { TCorP3Plane }
 
   TCorP3Plane = Class(TCorP3DCollider)
-  private
+  protected
     fNormVector, fBasePoint: TVector3;
   protected
     Procedure setMass(AValue: Single); override;
@@ -110,17 +121,14 @@ Type
   { TCorP3DBox }
 
   TCorP3DBox = Class(TCorP3DCollider)
-  private
-    fDim: TVector3;
-  protected
   public
-    Constructor Create(Dim: TVector3); reintroduce;
+    Constructor Create(Dim: TVector3); virtual; reintroduce;
   End;
 
   { TCorP3DCompoundCollider }
 
   TCorP3DCompoundCollider = Class(TCorP3DCollider)
-  private
+  protected
     fCollider: Array Of TCorP3DCollider;
     Function getCollider(index: integer): TCorP3DCollider;
     Function getColliderCount: integer;
@@ -131,11 +139,12 @@ Type
     Constructor Create(); override;
   End;
 
+  // TODO: Das hier muss noch Umgeschrieben werden, so dass die Kollision Punkte zurück gegeben werden !
+Function Collide2Objects(Const A, B: TCorP3DCollider): Boolean;
+
 Implementation
 
-Uses math
-  , unit1 // Debug !
-  ;
+Uses math, uCorP3D;
 
 Function col_overlap_axis(Const shape1, shape2: TCorP3DCollider; Const axis: TVector3; Out Overlap: Single): Boolean;
 Var
@@ -164,7 +173,7 @@ Var
   ContactPointsA: TVector3Array;
 Begin
   result := false;
-  If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
+  // If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
   If (a Is TCorP3Plane) And (b Is TCorP3Plane) Then exit; // 2 planes do not collide, as they both has no mass
   // Sort a to be a plane
   If b Is TCorP3Plane Then Begin
@@ -244,19 +253,19 @@ Begin
         If SatColliderB.Mass <> 0 Then Begin
           // Both move 50 %
           // TODO: Hier fehlt noch die Beschleunigung, bzw damit auch die Berücksichtigung der Masse ...
-          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
-          SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
+//          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
+//          SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
         End
         Else Begin
           // Only A Moves
-          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth;
-          SatColliderA.Velocity := SatColliderA.Velocity - (1 + SatColliderB.fRestitution) * (SatColliderA.Velocity * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]) * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex];
+//          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth;
+//          SatColliderA.Velocity := SatColliderA.Velocity - (1 + SatColliderB.fRestitution) * (SatColliderA.Velocity * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]) * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex];
         End;
       End
       Else Begin
         // Only B Moves
-        SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth;
-        SatColliderB.Velocity := SatColliderB.Velocity - (1 + SatColliderA.fRestitution) * (SatColliderB.Velocity * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]) * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex];
+//        SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth;
+//        SatColliderB.Velocity := SatColliderB.Velocity - (1 + SatColliderA.fRestitution) * (SatColliderB.Velocity * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex]) * SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex];
       End;
     End;
     exit;
@@ -325,7 +334,15 @@ Procedure TCorP3DCollider.Step(aDelta: Single);
 Var
   Acceleration: TVector3;
 Begin
-  If fMass = 0 Then exit;
+  If fMass = 0 Then Begin // No Mass no
+    fForce := v3(0, 0, 0);
+    exit;
+  End;
+  // 1. Apply all forces
+  If assigned(world) Then Begin
+    TCorP3DWorld(world).OnForceAndTorqueCallback(self, aDelta);
+  End;
+
   // Irgendwie muss die "interne" Verdrehung noch berücksichtigt werden
   Acceleration := fForce / fMass;
 
@@ -334,6 +351,16 @@ Begin
   Position := Position + fVelocity * aDelta;
   // Update the Colliders Internals
   UpdateTransformedValues();
+End;
+
+Procedure TCorP3DCollider.SetWorld(AValue: Pointer);
+Begin
+  If fWorld = AValue Then Exit;
+  fWorld := AValue;
+  // Kann das Funktionieren ?
+  If Not (TCorP3DWorld(fWorld) Is TCorP3DWorld) Then Begin
+    Raise Exception.Create('Error, only TCorP3DWorld or derived classes allowed!');
+  End;
 End;
 
 Procedure TCorP3DCollider.setMass(AValue: Single);
@@ -379,6 +406,7 @@ Begin
   fVelocity := v3(0, 0, 0);
   fSATAchsis := Nil;
   fRestitution := 0;
+  World := Nil;
 End;
 
 Destructor TCorP3DCollider.Destroy;
@@ -501,17 +529,16 @@ Var
   pts: TVector3Array;
 Begin
   Inherited create();
-  fDim := Dim;
   pts := Nil;
   setlength(pts, 8);
-  pts[0] := v3(-fDim.x / 2, -fDim.y / 2, -fDim.z / 2);
-  pts[1] := v3(-fDim.x / 2, -fDim.y / 2, fDim.z / 2);
-  pts[2] := v3(fDim.x / 2, -fDim.y / 2, fDim.z / 2);
-  pts[3] := v3(fDim.x / 2, -fDim.y / 2, -fDim.z / 2);
-  pts[4] := v3(-fDim.x / 2, fDim.y / 2, -fDim.z / 2);
-  pts[5] := v3(-fDim.x / 2, fDim.y / 2, fDim.z / 2);
-  pts[6] := v3(fDim.x / 2, fDim.y / 2, fDim.z / 2);
-  pts[7] := v3(fDim.x / 2, fDim.y / 2, -fDim.z / 2);
+  pts[0] := v3(-Dim.x / 2, -Dim.y / 2, -Dim.z / 2);
+  pts[1] := v3(-Dim.x / 2, -Dim.y / 2, Dim.z / 2);
+  pts[2] := v3(Dim.x / 2, -Dim.y / 2, Dim.z / 2);
+  pts[3] := v3(Dim.x / 2, -Dim.y / 2, -Dim.z / 2);
+  pts[4] := v3(-Dim.x / 2, Dim.y / 2, -Dim.z / 2);
+  pts[5] := v3(-Dim.x / 2, Dim.y / 2, Dim.z / 2);
+  pts[6] := v3(Dim.x / 2, Dim.y / 2, Dim.z / 2);
+  pts[7] := v3(Dim.x / 2, Dim.y / 2, -Dim.z / 2);
   SetPoints(pts);
 End;
 

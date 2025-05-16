@@ -112,6 +112,7 @@ Procedure TCorP3DWorld.AddCollider(Const aCollider: TCorP3DCollider);
 Begin
   setlength(fColliders, high(fColliders) + 2);
   fColliders[high(fColliders)] := aCollider;
+  fColliders[high(fColliders)].World := Self;
   fColliders[high(fColliders)].Finish; // Finish collider if not yet done ..
 End;
 
@@ -131,14 +132,7 @@ Var
 Begin
   If Not assigned(OnForceAndTorqueCallback) Then exit;
   For i := 0 To high(fColliders) Do Begin
-    // 1. Apply all forces
-    If fColliders[i].Mass = 0 Then Begin
-      fColliders[i].Force := v3(0, 0, 0);
-    End
-    Else Begin
-      OnForceAndTorqueCallback(fColliders[i], aDelta);
-      fColliders[i].Step(aDelta);
-    End;
+    fColliders[i].Step(aDelta);
   End;
   // Collide with others
   For i := 0 To high(fColliders) Do Begin

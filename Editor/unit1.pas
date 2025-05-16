@@ -46,6 +46,8 @@ Uses
   , uopengl_camera, Types, uEditor;
 
 Const
+  FileVersion: integer = 001;
+
   Gravity: TVector3 = (x: 0; y: - 9.8; z: 0);
 
 Type
@@ -59,14 +61,20 @@ Type
 
   TForm1 = Class(TForm)
     Button1: TButton;
+    Button2: TButton;
+    Button3: TButton;
     CheckBox1: TCheckBox;
     CheckBox2: TCheckBox;
     CheckBox3: TCheckBox;
     GroupBox1: TGroupBox;
     Label1: TLabel;
+    OpenDialog1: TOpenDialog;
     OpenGLControl1: TOpenGLControl;
+    SaveDialog1: TSaveDialog;
     Timer1: TTimer;
     Procedure Button1Click(Sender: TObject);
+    Procedure Button2Click(Sender: TObject);
+    Procedure Button3Click(Sender: TObject);
     Procedure FormCloseQuery(Sender: TObject; Var CanClose: Boolean);
     Procedure FormCreate(Sender: TObject);
     Procedure FormKeyDown(Sender: TObject; Var Key: Word; Shift: TShiftState);
@@ -96,6 +104,10 @@ Type
     Procedure RenderSzene;
     Procedure PickEditorObject(x, y: Integer);
     Procedure CheckCollision;
+
+    Procedure ClearScene();
+    Procedure SaveSceneToFile(Const aFileName: String);
+    Procedure LoadSceneFromFile(Const aFileName: String);
   public
     { public declarations }
   End;
@@ -253,7 +265,7 @@ End;
 
 Procedure TForm1.FormCreate(Sender: TObject);
 Begin
-  caption := 'CorP3D basic example';
+  caption := 'CorP3D editor ver. 0.01';
   // Init dglOpenGL.pas , Teil 1
   If Not InitOpenGl Then Begin
     showmessage('Error, could not init dglOpenGL.pas');
@@ -316,6 +328,22 @@ Procedure TForm1.Button1Click(Sender: TObject);
 Begin
   eye.Reset;
   EyeZoom := 1;
+End;
+
+Procedure TForm1.Button2Click(Sender: TObject);
+Begin
+  // Save Scene
+  If SaveDialog1.Execute Then Begin
+    SaveSceneToFile(SaveDialog1.FileName);
+  End;
+End;
+
+Procedure TForm1.Button3Click(Sender: TObject);
+Begin
+  // Load Scene
+  If OpenDialog1.Execute Then Begin
+    LoadSceneFromFile(OpenDialog1.FileName);
+  End;
 End;
 
 Procedure TForm1.Timer1Timer(Sender: TObject);
@@ -425,6 +453,87 @@ Begin
   label1.Visible := false;
 End;
 
+Procedure TForm1.ClearScene();
+Var
+  i: Integer;
+Begin
+  For i := 0 To high(EditorObjects) Do Begin
+    EditorObjects[i].Free;
+  End;
+  CheckBox1.Checked := false;
+End;
+
+Procedure TForm1.SaveSceneToFile(Const aFileName: String);
+Var
+  f: TFileStream;
+  j, i: integer;
+Begin
+  f := TFileStream.Create(aFileName, fmCreate Or fmOpenWrite);
+  // 1. Editor Einstellungen
+  f.Write(FileVersion, sizeof(FileVersion));
+  eye.SaveToStream(f);
+  f.Write(EyeZoom, sizeof(EyeZoom));
+  // 2. Alle Objekte
+  i := length(EditorObjects);
+  f.Write(i, sizeof(i));
+  For i := 0 To high(EditorObjects) Do Begin
+    j := -1;
+    If EditorObjects[i] Is TEditorBox Then j := 1;
+    // TODO: Weitere Editor Objects anfügen
+    If j = -1 Then Begin
+      f.free;
+      Raise Exception.Create('Undefined Object to safe.');
+      exit;
+    End;
+    f.Write(j, sizeof(j));
+    // ggf. vorher nen is TSaveableInterface test machen ?
+    (EditorObjects[i] As TSaveableInterface).SaveToStream(f);
+  End;
+  f.free;
+End;
+
+Procedure TForm1.LoadSceneFromFile(Const aFileName: String);
+Var
+  f: TFileStream;
+  j, i: integer;
+  aFileVersion: integer;
+Begin
+  f := TFileStream.Create(aFileName, fmOpenRead);
+  // 1. Editor Einstellungen
+  aFileVersion := -1;
+  f.Read(aFileVersion, sizeof(aFileVersion));
+  If aFileVersion > FileVersion Then Begin
+    showmessage('Error, fileversion is newer than editor version. Please update editor.');
+    f.free;
+    exit;
+  End;
+  ClearScene();
+  eye.loadFromStream(f);
+  f.Read(EyeZoom, sizeof(EyeZoom));
+  //  // 2. Alle Objekte
+  i := 0;
+  f.Read(i, sizeof(i));
+  setlength(EditorObjects, i);
+  For i := 0 To high(EditorObjects) Do Begin
+    j := -1;
+    f.Read(j, sizeof(j));
+    Case j Of
+      1: EditorObjects[i] := TEditorBox.Create(v3(0, 0, 0));
+    Else Begin
+        showmessage('Error, unknown Object id, unable to load scene.');
+        setlength(EditorObjects, i);
+        f.free;
+        exit;
+      End;
+    End;
+    // ggf. vorher nen is TSaveableInterface test machen ?
+    (EditorObjects[i] As TSaveableInterface).LoadFromStream(f);
+    // TODO: add as Collider to world !
+  End;
+  f.free;
+  CheckCollision();
+End;
+
 Procedure TForm1.OnForceAndTorque(Const aCollider: TCorP3DCollider;
   delta: Single);
 Begin
@@ -432,6 +541,4 @@ Begin
 End;
 
 End.
-
-
 
