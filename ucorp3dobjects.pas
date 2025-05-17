@@ -411,6 +411,9 @@ End;
 
 Destructor TCorP3DCollider.Destroy;
 Begin
+  If Assigned(World) Then Begin
+    TCorP3DWorld(world).RemoveCollider(self);
+  End;
   setlength(fvertices, 0);
 End;
 

@@ -59,8 +59,7 @@ Type
     Destructor Destroy(); override;
 
     Procedure AddCollider(Const aCollider: TCorP3DCollider);
-
-    //    Procedure RemoveCollider(Const aCollider: TCorP3DCollider); // Removes the collider without freeing it
+    Procedure RemoveCollider(Const aCollider: TCorP3DCollider); // Removes the collider without freeing it
 
     Procedure ClearWorldContent; // Frees all collider that are registered to the world
 
@@ -110,10 +109,26 @@ End;
 
 Procedure TCorP3DWorld.AddCollider(Const aCollider: TCorP3DCollider);
 Begin
+  // TODO: Check if Collider already exists ..
   setlength(fColliders, high(fColliders) + 2);
   fColliders[high(fColliders)] := aCollider;
   fColliders[high(fColliders)].World := Self;
   fColliders[high(fColliders)].Finish; // Finish collider if not yet done ..
+End;
+
+Procedure TCorP3DWorld.RemoveCollider(Const aCollider: TCorP3DCollider);
+Var
+  i, j: Integer;
+Begin
+  For i := 0 To high(fColliders) Do Begin
+    If fColliders[i] = aCollider Then Begin
+      For j := i To high(fColliders) - 1 Do Begin
+        fColliders[j] := fColliders[j + 1];
+      End;
+      SetLength(fColliders, high(fColliders));
+      exit;
+    End;
+  End;
 End;
 
 Procedure TCorP3DWorld.ClearWorldContent;
