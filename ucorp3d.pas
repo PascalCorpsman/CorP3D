@@ -136,6 +136,7 @@ Var
   i: Integer;
 Begin
   For i := high(fColliders) Downto 0 Do Begin
+    fColliders[i].World := Nil; // Do not call remove collider, as we remove the collider by our own ;)
     fColliders[i].Free;
   End;
   setlength(fColliders, 0);
@@ -144,6 +145,8 @@ End;
 Procedure TCorP3DWorld.Step(aDelta: Single);
 Var
   i, j: Integer;
+  CollidingInfo: TCollidingInfo;
+  ColNormal: TVector3;
 Begin
   If Not assigned(OnForceAndTorqueCallback) Then exit;
   For i := 0 To high(fColliders) Do Begin
@@ -152,12 +155,36 @@ Begin
   // Collide with others
   For i := 0 To high(fColliders) Do Begin
     For j := i + 1 To high(fColliders) Do Begin
-      If fColliders[i].Collide(fColliders[j]) Then Begin
+      If fColliders[i].Collide(fColliders[j], CollidingInfo) Then Begin
+        ColNormal := CollidingInfo.a.TransformedSATAchsis[CollidingInfo.ASatAchsisIndex];
+        // Move the Objects so that they do not "collide" anymore
+        If (CollidingInfo.a.Mass <> 0) Then Begin
+          If (CollidingInfo.B.Mass <> 0) Then Begin
+            // Both move 50 %
 
+            // TODO: Hier fehlt noch die Beschleunigung, bzw damit auch die Berücksichtigung der Masse ...
+  //          SatColliderA.Position := SatColliderA.Position - SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
+  //          SatColliderB.Position := SatColliderB.Position + SatColliderA.fTransformedSATAchsis[TiniestAchsisIndex] * AchsisDepth / 2;
+          End
+          Else Begin
+            // Only A Moves
+            CollidingInfo.A.Position := CollidingInfo.A.Position - ColNormal * CollidingInfo.AchsisDepth;
+            CollidingInfo.A.Velocity := CollidingInfo.A.Velocity - (1 + CollidingInfo.a.Restitution) * (CollidingInfo.A.Velocity * ColNormal) * ColNormal;
+          End;
+        End
+        Else Begin
+          // Only B Moves
+          CollidingInfo.B.Position := CollidingInfo.B.Position + ColNormal * CollidingInfo.AchsisDepth;
+          CollidingInfo.B.Velocity := CollidingInfo.B.Velocity - (1 + CollidingInfo.a.Restitution) * (CollidingInfo.B.Velocity * ColNormal) * ColNormal;
+        End;
       End;
     End;
   End;
 End;
 
 End.
+
+
+
+
 

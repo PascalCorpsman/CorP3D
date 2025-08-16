@@ -99,6 +99,7 @@ Type
     MouseInfo: TMouseInfo;
     EditorObjects: Array Of TCorP3DCollider;
     PickedEditorObjectIndex: integer;
+    CollidingInfos: Array Of TCollidingInfo;
 
     Procedure OnForceAndTorque(Const aCollider: TCorP3DCollider; delta: Single);
     Procedure RenderSzene;
@@ -120,7 +121,7 @@ Implementation
 
 {$R *.lfm}
 
-Uses LCLType;
+Uses LCLType, unit2;
 
 Const
   MouseSensitivity = 0.5;
@@ -166,6 +167,10 @@ Begin
   If ssleft In shift Then Begin
     PickEditorObject(x, y);
   End;
+  // Edit selected Object Properties
+  If (ssDouble In shift) And (PickedEditorObjectIndex <> -1) Then Begin
+    form2.EditObjectProperties(EditorObjects[PickedEditorObjectIndex]);
+  End;
 End;
 
 Procedure TForm1.OpenGLControl1MouseMove(Sender: TObject; Shift: TShiftState;
@@ -178,6 +183,7 @@ Begin
   If (ssRight In shift) Then Begin
     If PickedEditorObjectIndex <> -1 Then Begin
       If EditorObjects[PickedEditorObjectIndex] Is IDebugInterface Then Begin
+        // TODO: Translation in AugKoodinaten !
         If ssShift In Shift Then Begin
           (EditorObjects[PickedEditorObjectIndex] As IDebugInterface).Translate((dx / 10) * EyeZoom, (dy / 10) * EyeZoom, 0);
         End
@@ -199,6 +205,12 @@ Begin
   If (ssLeft In shift) Then Begin
     If PickedEditorObjectIndex <> -1 Then Begin
       // TODO: Object Rotation..
+
+      Property Editor
+//      TEditorPlane
+//      Rotation des Objectes
+//      Translation in Augkoordinaten
+
 
     End
     Else Begin
@@ -284,6 +296,7 @@ Begin
   // world.OnForceAndTorqueCallback := @OnForceAndTorque;
   Button1Click(Nil); // Rest eye
   PickedEditorObjectIndex := -1;
+  CollidingInfos := Nil;
 End;
 
 Procedure TForm1.FormKeyDown(Sender: TObject; Var Key: Word; Shift: TShiftState
@@ -434,8 +447,10 @@ End;
 Procedure TForm1.CheckCollision;
 Var
   i: Integer;
+  CollidingInfo: TCollidingInfo;
 Begin
   If PickedEditorObjectIndex = -1 Then exit;
+  setlength(CollidingInfos, 0);
   For i := 0 To high(EditorObjects) Do Begin
     If EditorObjects[i] Is IDebugInterface Then Begin
       (EditorObjects[i] As IDebugInterface).UpdateTransformedValues();
@@ -444,7 +459,9 @@ Begin
   For i := 0 To high(EditorObjects) Do Begin
     If i = PickedEditorObjectIndex Then Continue;
     If EditorObjects[i] Is IDebugInterface Then Begin
-      If Collide2Objects(EditorObjects[i], EditorObjects[PickedEditorObjectIndex]) Then Begin
+      If Collide2Objects(EditorObjects[i], EditorObjects[PickedEditorObjectIndex], CollidingInfo) Then Begin
+        setlength(CollidingInfos, high(CollidingInfos) + 2);
+        CollidingInfos[high(CollidingInfos)] := CollidingInfo;
         label1.Visible := true;
         exit;
       End;
@@ -457,6 +474,7 @@ Procedure TForm1.ClearScene();
 Var
   i: Integer;
 Begin
+  setlength(CollidingInfos, 0);
   For i := 0 To high(EditorObjects) Do Begin
     EditorObjects[i].Free;
   End;
@@ -547,4 +565,5 @@ Begin
 End;
 
 End.
+
 

@@ -23,8 +23,14 @@ Uses
 
 Type
 
-  TInterval = Record
-    val_min, val_max: TBaseType;
+  TCorP3DCollider = Class;
+
+  TCollidingInfo = Record
+    A: TCorP3DCollider;
+    B: TCorP3DCollider;
+    ASatAchsisIndex: integer;
+    AchsisDepth: TBaseType;
+    // TODO: ContactPoint !
   End;
 
   (*
@@ -36,6 +42,7 @@ Type
   TCorP3DCollider = Class
   private
     fWorld: Pointer;
+    Function getTransformedSATAchsis(index: integer): TVector3;
     Procedure SetWorld(AValue: Pointer);
   protected
     (*
@@ -93,13 +100,15 @@ Type
 
     Property Velocity: TVector3 read fVelocity write fVelocity;
 
+    Property TransformedSATAchsis[index: integer]: TVector3 read getTransformedSATAchsis;
+
     Constructor Create(); virtual;
     Destructor Destroy(); override;
 
     Procedure SetPoints(Const aPoints: TVector3Array); virtual; // Do not call in derived classes
 
     Function AABB: TAABB; virtual;
-    Function Collide(Const other: TCorP3DCollider): Boolean; virtual;
+    Function Collide(Const other: TCorP3DCollider; Out CollidingInfo: TCollidingInfo): Boolean; virtual;
 
     Procedure Finish; virtual; // Needed to be called every time after the vertex data is changed
     Procedure Step(aDelta: Single);
@@ -140,7 +149,7 @@ Type
   End;
 
   // TODO: Das hier muss noch Umgeschrieben werden, so dass die Kollision Punkte zurück gegeben werden !
-Function Collide2Objects(Const A, B: TCorP3DCollider): Boolean;
+Function Collide2Objects(Const A, B: TCorP3DCollider; Out CollidingInfo: TCollidingInfo): Boolean;
 
 Implementation
 
@@ -161,7 +170,7 @@ Begin
   End;
 End;
 
-Function Collide2Objects(Const A, B: TCorP3DCollider): Boolean;
+Function Collide2Objects(Const A, B: TCorP3DCollider; Out CollidingInfo: TCollidingInfo): Boolean;
 Var
   p: TCorP3Plane;
   i: Integer;
@@ -173,11 +182,11 @@ Var
   ContactPointsA: TVector3Array;
 Begin
   result := false;
-  // If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
+  If (a.Mass = 0) And (b.Mass = 0) Then exit; // both have no mass -> collision will have no effect..
   If (a Is TCorP3Plane) And (b Is TCorP3Plane) Then exit; // 2 planes do not collide, as they both has no mass
   // Sort a to be a plane
   If b Is TCorP3Plane Then Begin
-    result := Collide2Objects(b, a);
+    result := Collide2Objects(b, a, CollidingInfo);
     exit;
   End;
   If a Is TCorP3Plane Then Begin
@@ -188,8 +197,10 @@ Begin
     End;
     If d < 0 Then Begin
       // Move B object "above" the plane
-      B.Position := B.Position - p.fNormVector * d;
-      B.Velocity := B.Velocity - (1 + p.fRestitution) * (B.Velocity * p.fNormVector) * p.fNormVector;
+      CollidingInfo.A := a;
+      CollidingInfo.B := b;
+      CollidingInfo.ASatAchsisIndex := 0;
+      CollidingInfo.AchsisDepth := -d;
       result := true;
     End;
     exit;
@@ -232,6 +243,10 @@ Begin
           exit;
         End;
       End;
+      CollidingInfo.A := SatColliderA;
+      CollidingInfo.B := SatColliderB;
+      CollidingInfo.ASatAchsisIndex := TiniestAchsisIndex;
+      CollidingInfo.AchsisDepth := AchsisDepth;
       // Berechnen des möglichst exakten "Kollisionspunktes"
 //      ContactPointsA := SatColliderA.GetContactPoints(TiniestAchsisIndex);
 
@@ -290,9 +305,10 @@ Begin
   End;
 End;
 
-Function TCorP3DCollider.Collide(Const other: TCorP3DCollider): Boolean;
+Function TCorP3DCollider.Collide(Const other: TCorP3DCollider; Out
+  CollidingInfo: TCollidingInfo): Boolean;
 Begin
-  result := Collide2Objects(self, other);
+  result := Collide2Objects(self, other, CollidingInfo);
 End;
 
 Procedure TCorP3DCollider.Finish;
@@ -357,10 +373,20 @@ Procedure TCorP3DCollider.SetWorld(AValue: Pointer);
 Begin
   If fWorld = AValue Then Exit;
   fWorld := AValue;
-  // Kann das Funktionieren ?
-  If Not (TCorP3DWorld(fWorld) Is TCorP3DWorld) Then Begin
+  // Kann das Funktionieren oder macht der Typecast das direct unsinnig ?
+  If assigned(fWorld) And (Not (TCorP3DWorld(fWorld) Is TCorP3DWorld)) Then Begin
     Raise Exception.Create('Error, only TCorP3DWorld or derived classes allowed!');
   End;
+End;
+
+Function TCorP3DCollider.getTransformedSATAchsis(index: integer): TVector3;
+Begin
+  // Todo: Rangecheck
+  If fTransformedSATAchsis = Nil Then Begin
+    result := v3(0, 0, 0);
+    exit;
+  End;
+  result := fTransformedSATAchsis[index];
 End;
 
 Procedure TCorP3DCollider.setMass(AValue: Single);
@@ -522,7 +548,9 @@ End;
 
 Procedure TCorP3Plane.Finish;
 Begin
-  // nothing to do, this is a plane !
+  // TODO: Noch mehr, dass initialisiert werden muss ?
+  setlength(fTransformedSATAchsis, 1);
+  fTransformedSATAchsis[0] := fNormVector;
 End;
 
 { TCorP3DBox }

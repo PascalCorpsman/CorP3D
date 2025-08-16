@@ -21,12 +21,13 @@ Uses
   cthreads,
 {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, imagesforlazarus, Unit1;
+  Forms, imagesforlazarus, Unit1, Unit2;
 
 Begin
   Application.Initialize;
   Application.Title:='';
   Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TForm2, Form2);
   Application.Run;
 End.
 

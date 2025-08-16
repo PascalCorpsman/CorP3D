@@ -26,6 +26,10 @@ Type
     A, B: TVector3; // defined by 2 Vectors
   End;
 
+  TInterval = Record
+    val_min, val_max: TBaseType;
+  End;
+
 Function AABB(a, b: TVector3): TAABB;
 
 Operator = (a, b: TAABB): Boolean;
