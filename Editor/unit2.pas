@@ -44,6 +44,8 @@ Implementation
 
 {$R *.lfm}
 
+Uses uvectormath;
+
 { TForm2 }
 
 Procedure TForm2.FormCreate(Sender: TObject);
@@ -56,14 +58,22 @@ Procedure TForm2.LoadTEditorBox(Const Box: TEditorBox);
 Begin
   BoxTab.Visible := true;
   edit1.text := format('%0.2f', [box.Mass]);
-  edit2.text := format('%0.2f', [box.Restitution]);
-
-
+  edit5.text := format('%0.2f', [box.Restitution]);
+  edit2.text := format('%0.2f', [box.Vertex[6].x - box.Vertex[0].x]);
+  edit3.text := format('%0.2f', [box.Vertex[6].y - box.Vertex[0].y]);
+  edit4.text := format('%0.2f', [box.Vertex[6].z - box.Vertex[0].z]);
 End;
 
 Procedure TForm2.SaveTEditorBox(Const Box: TEditorBox);
 Begin
   box.Mass := strtofloatdef(edit1.text, 0);
+  box.Restitution := strtofloatdef(edit5.text, 0);
+  box.Resize(v3(
+    StrToFloatDef(edit2.text, 1),
+    StrToFloatDef(edit3.text, 1),
+    StrToFloatDef(edit4.text, 1)
+    ));
+
 End;
 
 Procedure TForm2.EditObjectProperties(Const Obj: TCorP3DCollider);

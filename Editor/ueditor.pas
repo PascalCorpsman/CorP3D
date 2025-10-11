@@ -49,8 +49,9 @@ Type
   private
     FileVersion: Integer;
   public
-
     Constructor Create(Dim: TVector3); override;
+
+    Procedure Resize(Dim: TVector3);
 
     // TSafeableInterface
     Procedure SaveToStream(Const astream: TStream); virtual;
@@ -78,6 +79,23 @@ Begin
   Inherited Create(Dim);
   FileVersion := 001;
   fSelected := false;
+End;
+
+Procedure TEditorBox.Resize(Dim: TVector3);
+Var
+  pts: TVector3Array;
+Begin
+  pts := Nil;
+  setlength(pts, 8);
+  pts[0] := v3(-Dim.x / 2, -Dim.y / 2, -Dim.z / 2);
+  pts[1] := v3(-Dim.x / 2, -Dim.y / 2, Dim.z / 2);
+  pts[2] := v3(Dim.x / 2, -Dim.y / 2, Dim.z / 2);
+  pts[3] := v3(Dim.x / 2, -Dim.y / 2, -Dim.z / 2);
+  pts[4] := v3(-Dim.x / 2, Dim.y / 2, -Dim.z / 2);
+  pts[5] := v3(-Dim.x / 2, Dim.y / 2, Dim.z / 2);
+  pts[6] := v3(Dim.x / 2, Dim.y / 2, Dim.z / 2);
+  pts[7] := v3(Dim.x / 2, Dim.y / 2, -Dim.z / 2);
+  SetPoints(pts);
 End;
 
 Procedure TEditorBox.SaveToStream(Const astream: TStream);

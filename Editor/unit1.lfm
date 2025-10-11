@@ -41,7 +41,7 @@ object Form1: TForm1
       Left = 8
       Height = 22
       Top = 0
-      Width = 50
+      Width = 49
       Caption = 'Play'
       TabOrder = 0
     end
@@ -49,7 +49,7 @@ object Form1: TForm1
       Left = 8
       Height = 16
       Top = 32
-      Width = 50
+      Width = 48
       Caption = 'collision'
       Font.Color = clRed
       ParentFont = False
